@@ -4,11 +4,15 @@ on:
     branches: ['**']
   pull_request:
   workflow_call:
+  workflow_dispatch: # 添加了这行，允许你在网页上手动点击运行
+
 permissions:
   contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,13 +34,22 @@ jobs:
       - run: ./gradlew testDebugUnitTest lintDebug :sample:assembleDebug :sample:assembleDebugAndroidTest publishAllPublicationsToStagingRepository --console=plain
       - name: Verify published dependency graph in a fresh consumer
         run: python3 scripts/verify_consumer.py
-      - uses: actions/upload-artifact@v4
+        
+      # 将测试报告和 APK 分开上传
+      - name: Upload Test Reports
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: reports-and-sample
-          path: |
-            **/build/reports/
-            sample/build/outputs/apk/debug/*.apk
+          name: reports
+          path: '**/build/reports/'
+
+      - name: Upload APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: sample/build/outputs/apk/debug/*.apk
+
   device:
     runs-on: ubuntu-latest
     steps:
